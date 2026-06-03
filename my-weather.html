@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>今天+明天天气查询</title>
+    <!-- 引入 Axios CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 50px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        input, button {
+            padding: 8px 12px;
+            font-size: 16px;
+        }
+        .result-box {
+            background-color: #f9f9f9;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 15px;
+            font-size: 16px;
+            line-height: 1.8;
+        }
+        .day-section {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+        }
+        .border-bottom {
+            border-bottom: 1px dashed #ccc;
+        }
+        .title-today {
+            color: #2db7f5;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .title-tomorrow {
+            color: #f90;
+            font-weight: bold;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>地名 - 查询今天+明天天气</h2>
+    <div style="margin-bottom: 20px;">
+        <input type="text" id="cityInput" value="金华" placeholder="请输入地名，如：金华">
+        <button id="queryBtn">查询天气</button>
+    </div>
+
+    <h3>查询结果：</h3>
+    <div id="result" class="result-box">点击按钮获取天气信息...</div>
+</div>
+
+<script>
+    document.getElementById('queryBtn').addEventListener('click', function() {
+        const city = document.getElementById('cityInput').value.trim();
+        if (!city) {
+            alert('请输入地名');
+            return;
+        }
+
+        const resultElement = document.getElementById('result');
+        resultElement.innerHTML = '正在查询，请稍候...';
+
+        const url = 'https://route.showapi.com/9-2';
+        const myAppKey = '2bA004eFfd6444578007E14e2E9e6655';
+        const myAppId = '2072240'; 
+
+        axios.get(url, {
+            params: {
+                showapi_appid: myAppId,
+                appKey: myAppKey,
+                area: city
+            }
+        })
+        .then(function (response) {
+            const data = response.data;
+            if (data && data.showapi_res_code === 0) {
+                const weatherInfo = data.showapi_res_body;
+                
+                // 1. 处理今天的天气数据 (now & f1)
+                let todayHtml = '无今天数据';
+                if (weatherInfo.f1) {
+                    const currentTemp = weatherInfo.now ? weatherInfo.now.temperature : null; // 当前实时温度
+                    const currentStatus = weatherInfo.now ? weatherInfo.now.weather : '';   // 当前天气状况
+                    
+                    const f1 = weatherInfo.f1;
+                    const todayWeather = f1.day_weather === f1.night_weather ? f1.day_weather : `${f1.day_weather}转${f1.night_weather}`;
+                    const todayMin = f1.night_air_temperature;
+                    const todayMax = f1.day_air_temperature;
+
+                    todayHtml = `
+                        <span class="title-today">【今日天气】</span><br>
+                        <strong>天气状况：</strong>${todayWeather}<br>
+                        ${currentTemp !== null ? `<strong>实时温度：</strong>${currentTemp} ℃ ${currentStatus ? `(${currentStatus})` : ''}<br>` : ''}
+                        <strong>气温区间：</strong>${todayMin} ℃ ~ ${todayMax} ℃
+                    `;
+                }
+
+                // 2. 处理明天的天气数据 (f2)
+                let tomorrowHtml = '无明天数据';
+                if (weatherInfo.f2) {
+                    const f2 = weatherInfo.f2;
+                    const tomorrowWeather = f2.day_weather === f2.night_weather ? f2.day_weather : `${f2.day_weather}转${f2.night_weather}`;
+                    const tomorrowMin = f2.night_air_temperature;
+                    const tomorrowMax = f2.day_air_temperature;
+
+                    tomorrowHtml = `
+                        <span class="title-tomorrow">【明日预报】</span><br>
+                        <strong>天气状况：</strong>${tomorrowWeather}<br>
+                        <strong>气温区间：</strong>${tomorrowMin} ℃ ~ ${tomorrowMax} ℃
+                    `;
+                }
+
+                // 3. 输出渲染到页面
+                resultElement.innerHTML = `
+                    <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px;">城市：${city}</div>
+                    <div class="day-section border-bottom">
+                        ${todayHtml}
+                    </div>
+                    <div class="day-section">
+                        ${tomorrowHtml}
+                    </div>
+                `;
+            } else {
+                resultElement.innerHTML = `<span style="color: red;">查询失败：${data.showapi_res_error || '未知错误'}</span>`;
+            }
+        })
+        .catch(function (error) {
+            resultElement.innerHTML = `<span style="color: red;">请求失败：${error.message}</span>`;
+            console.error(error);
+        });
+    });
+</script>
+
+</body>
+</html>
