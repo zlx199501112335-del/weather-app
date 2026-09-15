@@ -3,64 +3,401 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>今天+明天天气查询</title>
+    <title>未来15天天气预报查询</title>
     <!-- 引入 Axios CDN -->
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 50px;
+        :root {
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --primary-glow: rgba(59, 130, 246, 0.25);
+            --text-main: #0f172a;
+            --text-sub: #64748b;
+            --text-light: #94a3b8;
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --card-border: rgba(255, 255, 255, 0.6);
+            --temp-max: #f97316;
+            --temp-min: #0284c7;
         }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            min-height: 100vh;
+            padding: 40px 20px;
+            background: linear-gradient(145deg, #e0f2fe 0%, #ede9fe 40%, #f0fdf4 100%);
+            background-attachment: fixed;
+            color: var(--text-main);
+            -webkit-font-smoothing: antialiased;
+        }
+
         .container {
-            max-width: 600px;
+            max-width: 1100px;
             margin: 0 auto;
         }
-        input, button {
-            padding: 8px 12px;
-            font-size: 16px;
+
+        /* 顶部卡片 */
+        .search-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 30px;
+            border-radius: 20px;
+            border: 1px solid var(--card-border);
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.06), 0 4px 10px -2px rgba(0, 0, 0, 0.03);
+            margin-bottom: 24px;
+            transition: all 0.3s ease;
         }
+
+        .search-card h2 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .subtitle {
+            font-size: 13px;
+            color: var(--text-sub);
+            margin-top: 6px;
+            font-weight: normal;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .input-wrapper {
+            position: relative;
+            flex: 1;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 13px 18px;
+            font-size: 15px;
+            color: #1e293b;
+            background: #ffffff;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
+            outline: none;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px var(--primary-glow);
+            background: #ffffff;
+        }
+
+        button {
+            padding: 13px 28px;
+            font-size: 15px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: #ffffff;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+            transition: all 0.25s ease;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(37, 99, 235, 0.45);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        /* 结果卡片容器 */
         .result-box {
-            background-color: #f9f9f9;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            margin-top: 15px;
-            font-size: 16px;
-            line-height: 1.8;
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 30px;
+            border-radius: 20px;
+            border: 1px solid var(--card-border);
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.06), 0 4px 10px -2px rgba(0, 0, 0, 0.03);
+            min-height: 220px;
         }
-        .day-section {
-            margin-bottom: 15px;
-            padding-bottom: 15px;
+
+        .result-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #f1f5f9;
         }
-        .border-bottom {
-            border-bottom: 1px dashed #ccc;
+
+        .result-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #0f172a;
         }
-        .title-today {
-            color: #2db7f5;
-            font-weight: bold;
-            font-size: 18px;
+
+        .result-badge {
+            font-size: 12px;
+            background: #eff6ff;
+            color: var(--primary);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 500;
         }
-        .title-tomorrow {
-            color: #f90;
-            font-weight: bold;
-            font-size: 18px;
+
+        /* 网格卡片 */
+        .forecast-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 16px;
+        }
+
+        .forecast-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 18px 14px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .forecast-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.08);
+            border-color: #cbd5e1;
+        }
+
+        /* 高亮今天、明天 */
+        .forecast-card.highlight {
+            border-color: #93c5fd;
+            background: linear-gradient(180deg, #f8faff 0%, #ffffff 100%);
+        }
+
+        .forecast-date {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .forecast-tag {
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 6px;
+            background: #dbeafe;
+            color: #1d4ed8;
+            border-radius: 6px;
+        }
+
+        .forecast-subdate {
+            font-size: 12px;
+            font-weight: normal;
+            color: var(--text-light);
+            margin-top: 2px;
+        }
+
+        .weather-icon-box {
+            margin: 12px 0 6px 0;
+            height: 46px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .weather-icon-box svg {
+            width: 42px;
+            height: 42px;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.06));
+        }
+
+        .forecast-weather {
+            font-size: 14px;
+            font-weight: 500;
+            color: #334155;
+            margin-bottom: 8px;
+        }
+
+        .forecast-temp {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-size: 15px;
+            font-weight: 700;
+            background: #f8fafc;
+            width: 100%;
+            padding: 6px 0;
+            border-radius: 8px;
+            margin-top: 4px;
+        }
+
+        .temp-max {
+            color: var(--temp-max);
+        }
+
+        .temp-divider {
+            color: #cbd5e1;
+            font-size: 12px;
+            font-weight: normal;
+        }
+
+        .temp-min {
+            color: var(--temp-min);
+        }
+
+        .forecast-wind {
+            font-size: 12px;
+            color: var(--text-sub);
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* 状态展示 */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 0;
+            color: var(--text-sub);
+        }
+
+        .empty-icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+            opacity: 0.8;
+        }
+
+        .spinner {
+            width: 38px;
+            height: 38px;
+            border: 3px solid #e2e8f0;
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 12px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 16px 12px;
+            }
+            .search-card, .result-box {
+                padding: 20px 16px;
+            }
+            .search-bar {
+                flex-direction: column;
+            }
+            button {
+                width: 100%;
+            }
+            .forecast-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>地名 - 查询今天+明天天气</h2>
-    <div style="margin-bottom: 20px;">
-        <input type="text" id="cityInput" value="金华" placeholder="请输入地名，如：金华">
-        <button id="queryBtn">查询天气</button>
+    <div class="search-card">
+        <h2>
+            🌤️ 城市天气预报
+        </h2>
+        <div class="subtitle">未来15天全国天气走势、气温与风向精准查询</div>
+        <div class="search-bar">
+            <div class="input-wrapper">
+                <input type="text" id="cityInput" value="金华" placeholder="请输入城市名称，例如：金华、丽江、北京">
+            </div>
+            <button id="queryBtn">
+                <span>查询预报</span>
+            </button>
+        </div>
     </div>
 
-    <h3>查询结果：</h3>
-    <div id="result" class="result-box">点击按钮获取天气信息...</div>
+    <div class="result-box" id="result">
+        <div class="empty-state">
+            <div class="empty-icon">📍</div>
+            <p>输入城市后点击“查询预报”按钮，即可获取未来15天天气趋势</p>
+        </div>
+    </div>
 </div>
 
 <script>
+    // 天气类型与其内置矢量 SVG 图标映射
+    function getWeatherIcon(weather) {
+        if (!weather) return getSunIcon();
+        if (weather.includes('晴')) return getSunIcon();
+        if (weather.includes('多云')) return getCloudSunIcon();
+        if (weather.includes('阴')) return getCloudIcon();
+        if (weather.includes('雷')) return getThunderIcon();
+        if (weather.includes('雨')) return getRainIcon();
+        if (weather.includes('雪')) return getSnowIcon();
+        if (weather.includes('风') || weather.includes('沙')) return getWindIcon();
+        return getCloudSunIcon();
+    }
+
+    function getSunIcon() {
+        return `<svg viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="14" fill="#FDB813"/><g stroke="#FDB813" stroke-width="3" stroke-linecap="round"><line x1="32" y1="6" x2="32" y2="12"/><line x1="32" y1="52" x2="32" y2="58"/><line x1="6" y1="32" x2="12" y2="32"/><line x1="52" y1="32" x2="58" y2="32"/><line x1="13.6" y1="13.6" x2="17.8" y2="17.8"/><line x1="46.2" y1="46.2" x2="50.4" y2="50.4"/><line x1="13.6" y1="50.4" x2="17.8" y2="46.2"/><line x1="46.2" y1="17.8" x2="50.4" y2="13.6"/></g></svg>`;
+    }
+    function getCloudSunIcon() {
+        return `<svg viewBox="0 0 64 64" fill="none"><circle cx="26" cy="24" r="10" fill="#FDB813"/><path d="M46 44H20a10 10 0 1 1 2.8-19.6A13 13 0 0 1 45 27a8 8 0 0 1 1 17Z" fill="#94A3B8" opacity="0.9"/></svg>`;
+    }
+    function getCloudIcon() {
+        return `<svg viewBox="0 0 64 64" fill="none"><path d="M48 42H20a9 9 0 1 1 2.5-17.6A12 12 0 0 1 43 26a7 7 0 0 1 5 16Z" fill="#94A3B8"/></svg>`;
+    }
+    function getRainIcon() {
+        return `<svg viewBox="0 0 64 64" fill="none"><path d="M46 36H22a8 8 0 1 1 2.2-15.7A11 11 0 0 1 42 22a6 6 0 0 1 4 14Z" fill="#64748B"/><line x1="24" y1="42" x2="21" y2="50" stroke="#0284C7" stroke-width="2.5" stroke-linecap="round"/><line x1="33" y1="42" x2="30" y2="50" stroke="#0284C7" stroke-width="2.5" stroke-linecap="round"/><line x1="42" y1="42" x2="39" y2="50" stroke="#0284C7" stroke-width="2.5" stroke-linecap="round"/></svg>`;
+    }
+    function getThunderIcon() {
+        return `<svg viewBox="0 0 64 64" fill="none"><path d="M46 34H22a8 8 0 1 1 2.2-15.7A11 11 0 0 1 42 20a6 6 0 0 1 4 14Z" fill="#475569"/><polygon points="32 36 26 46 32 46 29 56 40 44 34 44" fill="#FBBF24"/></svg>`;
+    }
+    function getSnowIcon() {
+        return `<svg viewBox="0 0 64 64" fill="none"><path d="M46 36H22a8 8 0 1 1 2.2-15.7A11 11 0 0 1 42 22a6 6 0 0 1 4 14Z" fill="#94A3B8"/><circle cx="24" cy="46" r="2" fill="#38BDF8"/><circle cx="34" cy="48" r="2" fill="#38BDF8"/><circle cx="42" cy="45" r="2" fill="#38BDF8"/></svg>`;
+    }
+    function getWindIcon() {
+        return `<svg viewBox="0 0 64 64" fill="none"><path d="M12 28h30a6 6 0 1 0-6-6M16 36h34a6 6 0 1 1-6 6M10 44h20a5 5 0 1 0-5-5" stroke="#64748B" stroke-width="3" stroke-linecap="round"/></svg>`;
+    }
+
+    // 支持按下回车键查询
+    document.getElementById('cityInput').addEventListener('keyup', function(e) {
+        if (e.key === 'Enter') {
+            document.getElementById('queryBtn').click();
+        }
+    });
+
     document.getElementById('queryBtn').addEventListener('click', function() {
         const city = document.getElementById('cityInput').value.trim();
         if (!city) {
@@ -69,9 +406,15 @@
         }
 
         const resultElement = document.getElementById('result');
-        resultElement.innerHTML = '正在查询，请稍候...';
+        resultElement.innerHTML = `
+            <div class="empty-state">
+                <div class="spinner"></div>
+                <p>正在获取【${city}】未来15天预报数据，请稍候...</p>
+            </div>
+        `;
 
-        const url = 'https://route.showapi.com/9-2';
+        // 接口调用（原参数保持一致）
+        const url = 'https://route.showapi.com/9-9';
         const myAppKey = '2bA004eFfd6444578007E14e2E9e6655';
         const myAppId = '2072240'; 
 
@@ -87,56 +430,107 @@
             if (data && data.showapi_res_code === 0) {
                 const weatherInfo = data.showapi_res_body;
                 
-                // 1. 处理今天的天气数据 (now & f1)
-                let todayHtml = '无今天数据';
-                if (weatherInfo.f1) {
-                    const currentTemp = weatherInfo.now ? weatherInfo.now.temperature : null; // 当前实时温度
-                    const currentStatus = weatherInfo.now ? weatherInfo.now.weather : '';   // 当前天气状况
+                let list = [];
+                if (Array.isArray(weatherInfo.dayList)) {
+                    list = weatherInfo.dayList;
+                } else {
+                    for (let i = 1; i <= 15; i++) {
+                        if (weatherInfo['f' + i]) {
+                            list.push(weatherInfo['f' + i]);
+                        }
+                    }
+                }
+
+                if (list.length === 0) {
+                    resultElement.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-icon">⚠️</div>
+                            <p style="color: #d97706;">暂未获取到该地区的15天预报数据。</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // 格式化日期显示
+                const formatDate = (dateStr) => {
+                    if (!dateStr) return '';
+                    const str = String(dateStr);
+                    if (str.length === 8) {
+                        return `${str.slice(4, 6)}月${str.slice(6, 8)}日`;
+                    }
+                    return str;
+                };
+
+                let cardsHtml = '';
+                list.forEach((item, index) => {
+                    const weather = item.day_weather === item.night_weather 
+                        ? (item.day_weather || '晴') 
+                        : `${item.day_weather || ''}转${item.night_weather || ''}`;
                     
-                    const f1 = weatherInfo.f1;
-                    const todayWeather = f1.day_weather === f1.night_weather ? f1.day_weather : `${f1.day_weather}转${f1.night_weather}`;
-                    const todayMin = f1.night_air_temperature;
-                    const todayMax = f1.day_air_temperature;
+                    const minTemp = item.night_air_temperature;
+                    const maxTemp = item.day_air_temperature;
+                    const wind = item.day_wind_direction ? `${item.day_wind_direction} ${item.day_wind_power || ''}` : '';
+                    
+                    let dayLabel = formatDate(item.day);
+                    let badgeTag = '';
+                    let isSpecialDay = false;
 
-                    todayHtml = `
-                        <span class="title-today">【今日天气】</span><br>
-                        <strong>天气状况：</strong>${todayWeather}<br>
-                        ${currentTemp !== null ? `<strong>实时温度：</strong>${currentTemp} ℃ ${currentStatus ? `(${currentStatus})` : ''}<br>` : ''}
-                        <strong>气温区间：</strong>${todayMin} ℃ ~ ${todayMax} ℃
+                    if (index === 0) {
+                        badgeTag = '<span class="forecast-tag">今天</span>';
+                        isSpecialDay = true;
+                    } else if (index === 1) {
+                        badgeTag = '<span class="forecast-tag">明天</span>';
+                        isSpecialDay = true;
+                    }
+
+                    cardsHtml += `
+                        <div class="forecast-card ${isSpecialDay ? 'highlight' : ''}">
+                            <div class="forecast-date">
+                                <span>${dayLabel}</span>
+                                ${badgeTag}
+                            </div>
+                            <div class="weather-icon-box">
+                                ${getWeatherIcon(weather)}
+                            </div>
+                            <div class="forecast-weather">${weather}</div>
+                            <div class="forecast-temp">
+                                <span class="temp-min">${minTemp}°</span>
+                                <span class="temp-divider">~</span>
+                                <span class="temp-max">${maxTemp}°</span>
+                            </div>
+                            <div class="forecast-wind">
+                                <span>💨</span>
+                                <span>${wind || '微风'}</span>
+                            </div>
+                        </div>
                     `;
-                }
+                });
 
-                // 2. 处理明天的天气数据 (f2)
-                let tomorrowHtml = '无明天数据';
-                if (weatherInfo.f2) {
-                    const f2 = weatherInfo.f2;
-                    const tomorrowWeather = f2.day_weather === f2.night_weather ? f2.day_weather : `${f2.day_weather}转${f2.night_weather}`;
-                    const tomorrowMin = f2.night_air_temperature;
-                    const tomorrowMax = f2.day_air_temperature;
-
-                    tomorrowHtml = `
-                        <span class="title-tomorrow">【明日预报】</span><br>
-                        <strong>天气状况：</strong>${tomorrowWeather}<br>
-                        <strong>气温区间：</strong>${tomorrowMin} ℃ ~ ${tomorrowMax} ℃
-                    `;
-                }
-
-                // 3. 输出渲染到页面
                 resultElement.innerHTML = `
-                    <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px;">城市：${city}</div>
-                    <div class="day-section border-bottom">
-                        ${todayHtml}
+                    <div class="result-header">
+                        <div class="result-title">📍 ${city} 15天天气趋势</div>
+                        <span class="result-badge">15日趋势滚动预报</span>
                     </div>
-                    <div class="day-section">
-                        ${tomorrowHtml}
+                    <div class="forecast-grid">
+                        ${cardsHtml}
                     </div>
                 `;
             } else {
-                resultElement.innerHTML = `<span style="color: red;">查询失败：${data.showapi_res_error || '未知错误'}</span>`;
+                resultElement.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">❌</div>
+                        <p style="color: #ef4444;">查询失败：${data.showapi_res_error || '未知错误'}</p>
+                    </div>
+                `;
             }
         })
         .catch(function (error) {
-            resultElement.innerHTML = `<span style="color: red;">请求失败：${error.message}</span>`;
+            resultElement.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">⚠️</div>
+                    <p style="color: #ef4444;">请求服务异常：${error.message}</p>
+                </div>
+            `;
             console.error(error);
         });
     });
