@@ -19,6 +19,10 @@
             --temp-max: #f97316;
             --temp-min: #0284c7;
             --bg-gradient: linear-gradient(145deg, #e0f2fe 0%, #ede9fe 40%, #f0fdf4 100%);
+            --yi-bg: #ecfdf5;
+            --yi-color: #059669;
+            --ji-bg: #fef2f2;
+            --ji-color: #dc2626;
         }
 
         * {
@@ -158,7 +162,7 @@
         /* 网格卡片 */
         .forecast-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
             gap: 16px;
         }
 
@@ -166,7 +170,7 @@
             background: #ffffff;
             border: 1px solid #e2e8f0;
             border-radius: 16px;
-            padding: 16px 12px 14px;
+            padding: 16px 12px 12px;
             text-align: center;
             display: flex;
             flex-direction: column;
@@ -264,16 +268,57 @@
         .forecast-wind {
             font-size: 12px;
             color: var(--text-sub);
-            margin-top: 8px;
+            margin-top: 6px;
             display: flex;
             align-items: center;
             gap: 4px;
         }
 
+        /* 卡片内黄历（宜/忌）模块 */
+        .card-lunar-box {
+            width: 100%;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed #e2e8f0;
+            font-size: 11px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            text-align: left;
+        }
+
+        .card-lunar-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        .badge-yi, .badge-ji {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 1px 4px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            line-height: 1.2;
+        }
+
+        .badge-yi { background: var(--yi-bg); color: var(--yi-color); border: 1px solid #a7f3d0; }
+        .badge-ji { background: var(--ji-bg); color: var(--ji-color); border: 1px solid #fecaca; }
+
+        .card-lunar-text {
+            color: #475569;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+        }
+
         .card-tip {
             font-size: 11px;
             color: #3b82f6;
-            margin-top: 10px;
+            margin-top: 8px;
             background: #f0f7ff;
             padding: 2px 8px;
             border-radius: 10px;
@@ -412,7 +457,7 @@
             grid-template-columns: auto 1fr auto;
             align-items: center;
             gap: 24px;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
         }
 
         .hero-temp {
@@ -440,6 +485,43 @@
             border-radius: 6px;
             font-size: 12px;
             font-weight: 600;
+        }
+
+        /* 模态框内的黄历卡片 */
+        .modal-lunar-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 14px 18px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .modal-lunar-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .modal-lunar-tag {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .modal-lunar-text {
+            color: #334155;
+            word-break: break-all;
         }
 
         .detail-stats {
@@ -604,8 +686,8 @@
 
 <div class="container">
     <div class="search-card">
-        <h2>🌤️ 城市天气预报</h2>
-        <div class="subtitle">未来15天天气趋势滚动查询，点击具体日期可查看详细指标、空气质量与生活指数</div>
+        <h2>🌤️ 城市天气预报与老黄历</h2>
+        <div class="subtitle">未来15天天气走向、气温风向与每日老黄历【宜/忌】全景查询</div>
         <div class="search-bar">
             <div class="input-wrapper">
                 <input type="text" id="cityInput" value="金华" placeholder="请输入城市名称，例如：金华、丽江、北京">
@@ -619,7 +701,7 @@
     <div class="result-box" id="result">
         <div class="empty-state">
             <div class="empty-icon">📍</div>
-            <p>输入城市后点击“查询预报”按钮，即可获取15天天气趋势</p>
+            <p>输入城市后点击“查询预报”按钮，即可获取15天天气趋势及每日宜忌</p>
         </div>
     </div>
 </div>
@@ -682,7 +764,6 @@
 
     /**
      * 稳健解析日期信息
-     * 兼容 day / date 字段；即使接口未提供，也会根据 index 基于当前日期自动推算，确保永不为空
      */
     function resolveDateInfo(item, index) {
         const raw = item.day || item.date || '';
@@ -738,7 +819,7 @@
         resultElement.innerHTML = `
             <div class="empty-state">
                 <div class="spinner"></div>
-                <p>正在获取【${city}】未来15天预报数据，请稍候...</p>
+                <p>正在获取【${city}】未来15天预报与黄历，请稍候...</p>
             </div>
         `;
 
@@ -775,7 +856,10 @@
                 }
 
                 global15DaysData = list;
+                // 1. 渲染卡片基础骨架
                 renderCards(list, city);
+                // 2. 异步批量抓取每一天的老黄历宜忌数据
+                fetchAllDaysLunar(list);
             } else {
                 resultElement.innerHTML = `
                     <div class="empty-state">
@@ -795,7 +879,7 @@
         });
     });
 
-    // 渲染卡片：完整加上日期 + 星期 + 标识
+    // 渲染卡片：天气 + 每日黄历（宜/忌）占位
     function renderCards(list, city) {
         let cardsHtml = '';
         list.forEach((item, index) => {
@@ -807,9 +891,8 @@
             const maxTemp = item.day_air_temperature;
             const wind = item.day_wind_direction ? `${item.day_wind_direction} ${item.day_wind_power || ''}` : '';
             
-            // 核心：计算日期与星期
             const dateInfo = resolveDateInfo(item, index);
-            item._dateInfo = dateInfo; // 挂载给详情弹窗使用
+            item._dateInfo = dateInfo; // 挂载给详情使用
 
             let badgeTag = '';
             let isSpecialDay = false;
@@ -846,6 +929,19 @@
                         <span>💨</span>
                         <span>${wind || '微风'}</span>
                     </div>
+
+                    <!-- 每日黄历（宜/忌）展示区 -->
+                    <div class="card-lunar-box" id="lunar-card-${index}">
+                        <div class="card-lunar-row">
+                            <span class="badge-yi">宜</span>
+                            <span class="card-lunar-text text-yi">加载中...</span>
+                        </div>
+                        <div class="card-lunar-row">
+                            <span class="badge-ji">忌</span>
+                            <span class="card-lunar-text text-ji">加载中...</span>
+                        </div>
+                    </div>
+
                     <div class="card-tip">查看详情 👆</div>
                 </div>
             `;
@@ -853,13 +949,60 @@
 
         document.getElementById('result').innerHTML = `
             <div class="result-header">
-                <div class="result-title">📍 ${city} 15天天气趋势</div>
+                <div class="result-title">📍 ${city} 15天天气与每日老黄历</div>
                 <span class="result-badge">点击任意日期看详细指标</span>
             </div>
             <div class="forecast-grid">
                 ${cardsHtml}
             </div>
         `;
+    }
+
+    // 并发查询每一天的黄历（宜/忌）
+    function fetchAllDaysLunar(list) {
+        list.forEach((item, index) => {
+            const ymd = item._dateInfo.rawDateStr;
+            axios.get('https://route.showapi.com/856-2', {
+                params: {
+                    showapi_appid: API_APP_ID,
+                    appKey: API_APP_KEY,
+                    ymd: ymd
+                }
+            })
+            .then(res => {
+                let yi = '诸事皆宜';
+                let ji = '诸事不忌';
+                if (res.data && res.data.showapi_res_code === 0 && res.data.showapi_res_body) {
+                    yi = res.data.showapi_res_body.yi || '诸事皆宜';
+                    ji = res.data.showapi_res_body.ji || '诸事不忌';
+                }
+                item._lunar = { yi, ji };
+                updateCardLunar(index, yi, ji);
+            })
+            .catch(() => {
+                const yi = '诸事皆宜';
+                const ji = '诸事不忌';
+                item._lunar = { yi, ji };
+                updateCardLunar(index, yi, ji);
+            });
+        });
+    }
+
+    // 动态回填卡片内的宜忌内容
+    function updateCardLunar(index, yi, ji) {
+        const box = document.getElementById(`lunar-card-${index}`);
+        if (box) {
+            const yiEl = box.querySelector('.text-yi');
+            const jiEl = box.querySelector('.text-ji');
+            if (yiEl) {
+                yiEl.textContent = yi;
+                yiEl.title = `宜：${yi}`;
+            }
+            if (jiEl) {
+                jiEl.textContent = ji;
+                jiEl.title = `忌：${ji}`;
+            }
+        }
     }
 
     // 点击某一天打开详情
@@ -904,7 +1047,7 @@
         }
     }
 
-    // 渲染弹窗具体内容
+    // 渲染弹窗具体内容（包含当天完整黄历）
     function renderDetailModalContent(dayItem, dayIndex, detailBody, dateInfo) {
         const mBody = document.getElementById('mBody');
         const isToday = dayIndex === 0;
@@ -988,6 +1131,21 @@
             `;
         }
 
+        // 弹窗内的完整老黄历（宜/忌）展示
+        const lunarData = dayItem._lunar || { yi: '诸事皆宜', ji: '诸事不忌' };
+        const lunarHtml = `
+            <div class="modal-lunar-card">
+                <div class="modal-lunar-row">
+                    <span class="modal-lunar-tag badge-yi">宜</span>
+                    <span class="modal-lunar-text">${lunarData.yi}</span>
+                </div>
+                <div class="modal-lunar-row">
+                    <span class="modal-lunar-tag badge-ji">忌</span>
+                    <span class="modal-lunar-text">${lunarData.ji}</span>
+                </div>
+            </div>
+        `;
+
         const statsHtml = `
             <div class="detail-stats">
                 <div class="stat-item">
@@ -1020,7 +1178,7 @@
             `).join('');
 
             hoursHtml = `
-                <div class="section-title">⏱️ 当日气温半小时走势监测</div>
+                <div class="section-title">⏱️ 当日气温走势监测</div>
                 <div class="hours-scroll">
                     ${chips}
                 </div>
@@ -1074,6 +1232,7 @@
         mBody.innerHTML = `
             ${alarmHtml}
             ${nowHtml}
+            ${lunarHtml}
             ${statsHtml}
             ${hoursHtml}
             ${indexHtml}
